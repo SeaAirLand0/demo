@@ -1,0 +1,171 @@
+C51 COMPILER V8.16   TIMER                                                                 11/28/2019 11:08:58 PAGE 1   
+
+
+C51 COMPILER V8.16, COMPILATION OF MODULE TIMER
+OBJECT MODULE PLACED IN .\Output\timer.obj
+COMPILER INVOKED BY: C:\Keil_ARM\C51\BIN\C51.EXE ..\Library\StdDriver\src\timer.c OPTIMIZE(7,SPEED) BROWSE INCDIR(..\Lib
+                    -rary\Device\Include;..\Library\StdDriver\inc) DEBUG OBJECTEXTEND PRINT(.\LST\timer.lst) TABS(2) OBJECT(.\Output\timer.ob
+                    -j)
+
+line level    source
+
+   1          /*--------------------------------------------------------------------------------------------------------
+             --*/
+   2          /*                                                                                                        
+             - */
+   3          /* Copyright(c) 2019 Nuvoton Technology Corp. All rights reserved.                                        
+             - */
+   4          /*                                                                                                        
+             - */
+   5          /*--------------------------------------------------------------------------------------------------------
+             --*/
+   6          
+   7          /*********************************************************************************************************
+             -**/
+   8          /*  Website: http://www.nuvoton.com                                                                       
+             - */
+   9          /*  E-Mail : MicroC-8bit@nuvoton.com                                                                      
+             - */
+  10          /*  Date   : Jan/21/2019                                                                                  
+             - */
+  11          /*********************************************************************************************************
+             -**/
+  12           #include "MS51.h"
+  13          
+  14          //-------------------------------------------------------------------------
+  15          void Timer0_Delay100us(UINT32 u32CNT)
+  16          {
+  17   1          clr_CKCON_T0M;                                    //T0M=0, Timer0 Clock = Fsys/12
+  18   1          TMOD |= 0x01;                               //Timer0 is 16-bit mode
+  19   1          set_TCON_TR0;                                    //Start Timer0
+  20   1          while (u32CNT != 0)
+  21   1          {
+  22   2              TL0 = LOBYTE(TIMER_DIV12_VALUE_100us);  //Find  define in "Function_define.h" "TIMER VALUE"
+*** ERROR C202 IN LINE 22 OF ..\LIBRARY\STDDRIVER\SRC\TIMER.C: 'TIMER_DIV12_VALUE_100us': undefined identifier
+  23   2              TH0 = HIBYTE(TIMER_DIV12_VALUE_100us);
+*** ERROR C202 IN LINE 23 OF ..\LIBRARY\STDDRIVER\SRC\TIMER.C: 'TIMER_DIV12_VALUE_100us': undefined identifier
+  24   2              while (TF0 != 1);                       //Check Timer0 Time-Out Flag
+  25   2              clr_TCON_TF0;
+  26   2              u32CNT --;
+  27   2          }
+  28   1          clr_TCON_TR0;                                     //Stop Timer0
+  29   1      }
+  30          //------------------------------------------------------------------------------
+  31          void Timer0_Delay1ms(UINT32 u32CNT)
+  32          {
+  33   1          clr_CKCON_T0M;                                    //T0M=0, Timer0 Clock = Fsys/12
+  34   1          TMOD |= 0x01;                               //Timer0 is 16-bit mode
+  35   1      
+  36   1          while (u32CNT != 0)
+  37   1          {
+  38   2              TL0 = LOBYTE(TIMER_DIV12_VALUE_1ms);     //Find  define in "Function_define.h" "TIMER VALUE"
+*** ERROR C202 IN LINE 38 OF ..\LIBRARY\STDDRIVER\SRC\TIMER.C: 'TIMER_DIV12_VALUE_1ms': undefined identifier
+  39   2              TH0 = HIBYTE(TIMER_DIV12_VALUE_1ms);
+*** ERROR C202 IN LINE 39 OF ..\LIBRARY\STDDRIVER\SRC\TIMER.C: 'TIMER_DIV12_VALUE_1ms': undefined identifier
+C51 COMPILER V8.16   TIMER                                                                 11/28/2019 11:08:58 PAGE 2   
+
+  40   2               set_TCON_TR0;                                    //Start Timer0
+  41   2              while (TF0 != 1);                       //Check Timer0 Time-Out Flag
+  42   2              clr_TCON_TF0;
+  43   2              u32CNT --;
+  44   2          }
+  45   1          clr_TCON_TR0;                                    //Stop Timer0
+  46   1      }
+  47          //------------------------------------------------------------------------------
+  48          void Timer1_Delay10ms(UINT32 u32CNT)
+  49          {
+  50   1          clr_CKCON_T1M;                                    //T1M=0, Timer1 Clock = Fsys/12
+  51   1          TMOD |= 0x10;                                //Timer1 is 16-bit mode
+  52   1          set_TCON_TR1;                                    //Start Timer1
+  53   1          while (u32CNT != 0)
+  54   1          {
+  55   2              TL1 = LOBYTE(TIMER_DIV12_VALUE_10ms);    //Find  define in "Function_define.h" "TIMER VALUE"
+*** ERROR C202 IN LINE 55 OF ..\LIBRARY\STDDRIVER\SRC\TIMER.C: 'TIMER_DIV12_VALUE_10ms': undefined identifier
+  56   2              TH1 = HIBYTE(TIMER_DIV12_VALUE_10ms);
+*** ERROR C202 IN LINE 56 OF ..\LIBRARY\STDDRIVER\SRC\TIMER.C: 'TIMER_DIV12_VALUE_10ms': undefined identifier
+  57   2              while (TF1 != 1);                        //Check Timer1 Time-Out Flag
+  58   2              clr_TCON_TF1;
+  59   2              u32CNT --;
+  60   2          }
+  61   1          clr_TCON_TR1;                                     //Stop Timer1
+  62   1      }
+  63          //------------------------------------------------------------------------------
+  64          void Timer2_Delay500us(UINT8 u8CNT)
+  65          {
+  66   1          SFRS = 0;
+  67   1          T2MOD&=0x8F;T2MOD|=0x10;                                   //Timer2 Clock = Fsys/4 
+  68   1          clr_T2CON_CMRL2;
+  69   1          set_T2MOD_LDEN;
+  70   1          set_T2MOD_CMPCR;
+  71   1      
+  72   1          while (u8CNT != 0)
+  73   1          {
+  74   2              TL2 = LOBYTE(TIMER_DIV4_VALUE_500us);    //Find  define in "Function_define.h" "TIMER VALUE"
+*** ERROR C202 IN LINE 74 OF ..\LIBRARY\STDDRIVER\SRC\TIMER.C: 'TIMER_DIV4_VALUE_500us': undefined identifier
+  75   2              TH2 = HIBYTE(TIMER_DIV4_VALUE_500us);
+*** ERROR C202 IN LINE 75 OF ..\LIBRARY\STDDRIVER\SRC\TIMER.C: 'TIMER_DIV4_VALUE_500us': undefined identifier
+  76   2              set_T2CON_TR2;
+  77   2              while (TF2 == 0);                       //Check Timer2 Time-Out Flag
+  78   2              clr_T2CON_TF2;
+  79   2              u8CNT --;
+  80   2          }
+  81   1          clr_T2CON_TR2;                                    //Stop Timer2
+  82   1      }
+  83          void Timer2_Delay1ms(unsigned char u8CNT)
+  84          {
+  85   1          SFRS = 0;
+  86   1          T2MOD&=0x8F;T2MOD|=0x10;                                   //Timer2 Clock = Fsys/4 
+  87   1          clr_T2CON_CMRL2;
+  88   1          set_T2MOD_LDEN;
+  89   1          set_T2MOD_CMPCR;
+  90   1      
+  91   1          while (u8CNT != 0)
+  92   1          {        TL2 = LOBYTE(TIMER_DIV4_VALUE_1ms);    //Find  define in "Function_define.h" "TIMER VALUE"
+*** ERROR C202 IN LINE 92 OF ..\LIBRARY\STDDRIVER\SRC\TIMER.C: 'TIMER_DIV4_VALUE_1ms': undefined identifier
+  93   2              TH2 = HIBYTE(TIMER_DIV4_VALUE_1ms);
+*** ERROR C202 IN LINE 93 OF ..\LIBRARY\STDDRIVER\SRC\TIMER.C: 'TIMER_DIV4_VALUE_1ms': undefined identifier
+  94   2              set_T2CON_TR2;
+  95   2              while (TF2 == 0);                       //Check Timer2 Time-Out Flag
+C51 COMPILER V8.16   TIMER                                                                 11/28/2019 11:08:58 PAGE 3   
+
+  96   2              clr_T2CON_TF2;
+  97   2              u8CNT --;
+  98   2          }
+  99   1          clr_T2CON_TR2;                                    //Stop Timer2
+ 100   1      }
+ 101          //------------------------------------------------------------------------------
+ 102          void Timer3_Delay100ms(UINT32 u32CNT)
+ 103          {
+ 104   1          T3CON = 0x07;                               //Timer3 Clock = Fsys/128
+ 105   1          set_T3CON_TR3;                                    //Trigger Timer3
+ 106   1          while (u32CNT != 0)
+ 107   1          {
+ 108   2              RL3 = LOBYTE(TIMER_DIV128_VALUE_100ms); //Find  define in "Function_define.h" "TIMER VALUE"
+*** ERROR C202 IN LINE 108 OF ..\LIBRARY\STDDRIVER\SRC\TIMER.C: 'TIMER_DIV128_VALUE_100ms': undefined identifier
+ 109   2              RH3 = HIBYTE(TIMER_DIV128_VALUE_100ms);
+*** ERROR C202 IN LINE 109 OF ..\LIBRARY\STDDRIVER\SRC\TIMER.C: 'TIMER_DIV128_VALUE_100ms': undefined identifier
+ 110   2              while ((T3CON&SET_BIT4) != SET_BIT4);    //Check Timer3 Time-Out Flag
+ 111   2              clr_T3CON_TF3;
+ 112   2              u32CNT --;
+ 113   2          }
+ 114   1          clr_T3CON_TR3;                                    //Stop Timer3
+ 115   1      }
+ 116          //------------------------------------------------------------------------------
+ 117          void Timer3_Delay10us(UINT32 u32CNT)
+ 118          {
+ 119   1          T3CON = 0x02;                               //Timer3 Clock = Fsys/4
+ 120   1          set_T3CON_TR3;                                    //Trigger Timer3
+ 121   1          while (u32CNT != 0)
+ 122   1          {
+ 123   2              RL3 = LOBYTE(TIMER_DIV4_VALUE_10us); //Find  define in "Function_define.h" "TIMER VALUE"
+*** ERROR C202 IN LINE 123 OF ..\LIBRARY\STDDRIVER\SRC\TIMER.C: 'TIMER_DIV4_VALUE_10us': undefined identifier
+ 124   2              RH3 = HIBYTE(TIMER_DIV4_VALUE_10us);
+*** ERROR C202 IN LINE 124 OF ..\LIBRARY\STDDRIVER\SRC\TIMER.C: 'TIMER_DIV4_VALUE_10us': undefined identifier
+ 125   2              while ((T3CON&SET_BIT4) != SET_BIT4);    //Check Timer3 Time-Out Flag
+ 126   2              clr_T3CON_TF3;
+ 127   2              u32CNT --;
+ 128   2          }
+ 129   1          clr_T3CON_TR3;                                    //Stop Timer3
+ 130   1      }
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  14 ERROR(S)

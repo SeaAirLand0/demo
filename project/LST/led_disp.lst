@@ -1,0 +1,221 @@
+C51 COMPILER V9.01   LED_DISP                                                              03/30/2023 10:09:09 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE LED_DISP
+OBJECT MODULE PLACED IN .\Output\led_disp.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE ..\driver\led_disp.c LARGE OPTIMIZE(7,SPEED) BROWSE INCDIR(..\Library\Devic
+                    -e\Include;..\Library\StdDriver\inc;..\user;..\driver;..\bsp;..\Include;..\common) DEBUG OBJECTEXTEND PRINT(.\LST\led_dis
+                    -p.lst) TABS(2) OBJECT(.\Output\led_disp.obj)
+
+line level    source
+
+   1          /*
+   2           * led_disp.c
+   3           *
+   4           *  Created on: 2019Äê11ÔÂ27ÈÕ
+   5           *      Author: Administrator
+   6           */
+   7          
+   8          #include "led_disp.h"
+   9          #include "7_segment.h"
+  10          #include "indecate.h"
+  11          
+  12          static u8 *ptrseg;
+  13          
+  14          static u8 buf[2][4];
+  15          static u8 _mode=0;
+  16          static u8 cnt=0,flash_cnt=0;
+  17          
+  18          
+  19          void led_display_init(void)
+  20          {
+  21   1        ptrseg=(u8*)&indecate.seg[0];
+  22   1        set_seg_mode(SEG_MODE_NORMAL);
+  23   1      
+  24   1      }
+  25          
+  26          void set_bit_seg(u8 index, u8 dat)
+  27          {
+  28   1        ptrseg[index]=dat;
+  29   1        indecate_update_flag=1;
+  30   1      }
+  31          
+  32          void set_seg_val(u16 val)
+  33          {
+  34   1        u8 dat=(val/1000);
+  35   1        if(dat==0){dat=SEG_ALL_OFF;}
+  36   1        ptrseg[0]=seg_num[dat];
+  37   1        ptrseg[1]=seg_num[(val%1000)/100];
+  38   1        ptrseg[2]=seg_num[(val%100)/10];
+  39   1        ptrseg[3]=seg_num[val%10];
+  40   1      
+  41   1        indecate_update_flag=1;
+  42   1      }
+  43          
+  44          
+  45          void set_seg_two(u8 hi2,u8 lo2)
+  46          {
+  47   1        u8 dat=(hi2/10);
+  48   1        if(dat==0){dat=SEG_ALL_OFF;}
+  49   1        ptrseg[0]=seg_num[dat];
+  50   1        ptrseg[1]=seg_num[(hi2%10)];
+  51   1      
+  52   1        ptrseg[2]=seg_num[(lo2/10)];
+  53   1        ptrseg[3]=seg_num[lo2%10];
+C51 COMPILER V9.01   LED_DISP                                                              03/30/2023 10:09:09 PAGE 2   
+
+  54   1      
+  55   1        indecate_update_flag=1;
+  56   1      }
+  57          
+  58          
+  59          
+  60          void set_seg_mode(u8 mode)
+  61          {
+  62   1        _mode=mode;
+  63   1        cnt=0;
+  64   1        indecate_update_flag=1;
+  65   1      }
+  66          
+  67          void set_seg_toggle_val(u16 val0,u16 val1)
+  68          {
+  69   1        u8 dat;
+  70   1        dat=(val0/10000);
+  71   1        if(dat==0){dat=SEG_ALL_OFF;}
+  72   1        buf[0][0]=seg_num[dat];
+  73   1        buf[0][1]=seg_num[(val0%1000)/100];
+  74   1        buf[0][2]=seg_num[(val0%100)/10];
+  75   1        buf[0][3]=seg_num[val0%10];
+  76   1      
+  77   1      
+  78   1        dat=(val1/1000);
+  79   1        if(dat==0){dat=SEG_ALL_OFF;}
+  80   1        buf[1][0]=seg_num[dat];
+  81   1        buf[1][1]=seg_num[(val1%1000)/100];
+  82   1        buf[1][2]=seg_num[(val1%100)/10];
+  83   1        buf[1][3]=seg_num[val1%10];
+  84   1      
+  85   1        indecate_update_flag=1;
+  86   1      }
+  87          
+  88          
+  89          void set_seg_flash_cnt(u8 cnt)
+  90          {
+  91   1        flash_cnt=cnt-1;
+  92   1        indecate_update_flag=1;
+  93   1      }
+  94          
+  95          
+  96          void seg_disp_proc(void)
+  97          {
+  98   1        switch(_mode)
+  99   1        {
+ 100   2        case SEG_MODE_NORMAL:
+ 101   2          break;
+ 102   2        case SEG_MODE_FLASH_SELF:
+ 103   2          if(cnt==0)
+ 104   2          {
+ 105   3            buf[0][0]=ptrseg[0];
+ 106   3            buf[0][1]=ptrseg[1];
+ 107   3            buf[0][2]=ptrseg[2];
+ 108   3            buf[0][3]=ptrseg[3];
+ 109   3          }
+ 110   2          else if(cnt==SEG_FLASH_FREQ)
+ 111   2          {
+ 112   3            ptrseg[0]=0x00;
+ 113   3            ptrseg[1]=0x00;
+ 114   3            ptrseg[2]=0x00;
+ 115   3            ptrseg[3]=0x00;
+C51 COMPILER V9.01   LED_DISP                                                              03/30/2023 10:09:09 PAGE 3   
+
+ 116   3            indecate_update_flag=1;
+ 117   3          }
+ 118   2          else if(cnt==(SEG_FLASH_FREQ<<1))
+ 119   2          {
+ 120   3            ptrseg[0]=buf[0][0];
+ 121   3            ptrseg[1]=buf[0][1];
+ 122   3            ptrseg[2]=buf[0][2];
+ 123   3            ptrseg[3]=buf[0][3];
+ 124   3            cnt=0xff;
+ 125   3            indecate_update_flag=1;
+ 126   3            //if(flash_cnt){flash_cnt--;}
+ 127   3            //else{_mode=SEG_MODE_NORMAL;break;}
+ 128   3          }
+ 129   2          cnt++;
+ 130   2          break;
+ 131   2        case SEG_MODE_FLASH_TOGGLE:
+ 132   2          if(cnt==0)
+ 133   2          {
+ 134   3            ptrseg[0]=buf[0][0];
+ 135   3            ptrseg[1]=buf[0][1];
+ 136   3            ptrseg[2]=buf[0][2];
+ 137   3            ptrseg[3]=buf[0][3];
+ 138   3          }
+ 139   2          else if(cnt==SEG_FLASH_FREQ)
+ 140   2          {
+ 141   3            ptrseg[0]=buf[1][0];
+ 142   3            ptrseg[1]=buf[1][1];
+ 143   3            ptrseg[2]=buf[1][2];
+ 144   3            ptrseg[3]=buf[1][3];
+ 145   3            indecate_update_flag=1;
+ 146   3          }
+ 147   2          else if(cnt==(SEG_FLASH_FREQ<<1))
+ 148   2          {
+ 149   3            ptrseg[0]=buf[0][0];
+ 150   3            ptrseg[1]=buf[0][1];
+ 151   3            ptrseg[2]=buf[0][2];
+ 152   3            ptrseg[3]=buf[0][3];
+ 153   3            indecate_update_flag=1;
+ 154   3            cnt=0;
+ 155   3          }
+ 156   2          cnt++;
+ 157   2          break;
+ 158   2        default:
+ 159   2          break;
+ 160   2        }
+ 161   1      }
+ 162          
+ 163          
+ 164          #if(0)
+              void set_bit_led(u8 index,u8 status)
+              {
+              
+                indecate.led9=0;
+                indecate.led10=0;
+                indecate.led21=0;
+                indecate.led30=0;
+                indecate.led31=0;
+                indecate.led40=0;
+                indecate.led41=0;
+              
+                if(index==0){indecate.led9=status==LED_ON?1:0;}
+                else if(index==1){indecate.led10=status==LED_ON?1:0;}
+C51 COMPILER V9.01   LED_DISP                                                              03/30/2023 10:09:09 PAGE 4   
+
+                else if(index==2){indecate.led21=status==LED_ON?1:0;}
+                else if(index==3){indecate.led30=status==LED_ON?1:0;}
+                else if(index==4){indecate.led31=status==LED_ON?1:0;}
+                else if(index==5){indecate.led40=status==LED_ON?1:0;}
+                else if(index==6){indecate.led41=status==LED_ON?1:0;}
+                else{}
+                indecate_update_flag=1;
+              }
+              #endif
+ 187          
+ 188          
+ 189          
+ 190          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1178    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     14       4
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,351 @@
+C51 COMPILER V9.01   MAIN                                                                  03/30/2023 10:09:09 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Output\main.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE ..\user\main.c LARGE OPTIMIZE(7,SPEED) BROWSE INCDIR(..\Library\Device\Incl
+                    -ude;..\Library\StdDriver\inc;..\user;..\driver;..\bsp;..\Include;..\common) DEBUG OBJECTEXTEND PRINT(.\LST\main.lst) TAB
+                    -S(2) OBJECT(.\Output\main.obj)
+
+line level    source
+
+   1          
+   2          /**********************************************************************************************
+   3          //2023.3.22 ：背光灯由TM1620驱动 在上电状态直接点亮。
+   4          //2023.3.29 ：1.增加蜂鸣器开关，
+   5                        2.上电传输默认设定好的的最大速度，最大电压，最小电压，kiv等参数。
+   6                        3.优化显示逻辑。
+   7          
+   8          ************************************************************************************************/
+   9          /*
+  10           * main.c
+  11           *
+  12           *  Created on: 2019年11月28日
+  13           *      Author: Administrator
+  14           */
+  15          
+  16          #include "common.h"
+  17          #include "aip1628.h"
+  18          #include "led_disp.h"
+  19          #include "indecate.h"
+  20          #include "keypad.h"
+  21          #include "keypad_fun.h"
+  22          #include "pwm_simple.h"
+  23          #include "beep.h"
+  24          #include "uart.h"
+  25          #include "uart_frame.h"
+  26          #include "treadmills.h"
+  27          #include "param.h"
+  28          #include "ee_param.h"
+  29          
+  30          
+  31          static bit poweron_send_flag = 0;
+  32          
+  33          extern UINT8  ms10_flag;
+  34          extern UINT8  ms100_flag;
+  35          extern UINT8  ms500_flag;
+  36          extern UINT8  ms1000_flag;
+  37          
+  38          //extern UINT8 ms50_flag;
+  39          
+  40          extern void Timer0_Init(void);
+  41          extern void uart0_init(void);
+  42          
+  43          extern u8 set_param_en;
+  44          
+  45          
+  46          
+  47          
+  48          void MODIFY_HIRC_166(void)
+  49          {
+  50   1          unsigned char data hircmap0,hircmap1;
+  51   1          unsigned int trimvalue16bit;
+  52   1        /* Check if power on reset, modify HIRC */
+  53   1        if (PCON&SET_BIT4)
+C51 COMPILER V9.01   MAIN                                                                  03/30/2023 10:09:09 PAGE 2   
+
+  54   1        {
+  55   2      
+  56   2          CKDIV = 0x00;
+  57   2        set_IAPEN;
+  58   2        IAPAL = 0x30;
+  59   2          IAPAH = 0x00;
+  60   2          IAPCN = READ_UID;
+  61   2          set_IAPGO;
+  62   2        hircmap0 = IAPFD;
+  63   2        IAPAL = 0x31;
+  64   2          IAPAH = 0x00;
+  65   2          set_IAPGO;
+  66   2        hircmap1 = IAPFD;
+  67   2        clr_IAPEN;
+  68   2        trimvalue16bit = ((hircmap0<<1)+(hircmap1&0x01));
+  69   2        trimvalue16bit = trimvalue16bit - 15;
+  70   2        hircmap1 = trimvalue16bit&0x01;
+  71   2        hircmap0 = trimvalue16bit>>1;
+  72   2        TA=0XAA;
+  73   2        TA=0X55;
+  74   2        RCTRIM0 = hircmap0;
+  75   2        TA=0XAA;
+  76   2        TA=0X55;
+  77   2        RCTRIM1 = hircmap1;
+  78   2      
+  79   2      
+  80   2        //CKDIV = 0x50;         //HIRC devider 160
+  81   2        //set_CLOEN;            //Check HIRC out wavefrom to confirm the HIRC modified
+  82   2        /* Clear power on flag */
+  83   2         PCON &= CLR_BIT4;
+  84   2        }
+  85   1      
+  86   1      }
+  87          
+  88          
+  89          /*************************************************************************
+  90          @brief:  保存设置的参数值
+  91          
+  92          @parameter: 无
+  93          
+  94          @return: 无
+  95          **************************************************************************/
+  96          static void save_param(void)
+  97          {
+  98   1        u8 i = 0;
+  99   1              //**********2023.2.3保存设置的参数*********
+ 100   1                 
+ 101   1        ee_param.beep_status = treadmills.param.beep_status;
+ 102   1      
+ 103   1        write_param();  //写保存上面的数据
+ 104   1      
+ 105   1      }
+ 106          
+ 107          
+ 108          /*************************************************************************
+ 109          @brief:  读取设置的参数值
+ 110          
+ 111          @parameter: 无
+ 112          
+ 113          @return: 无
+ 114          **************************************************************************/
+ 115          static void read_beep_status(void)
+C51 COMPILER V9.01   MAIN                                                                  03/30/2023 10:09:09 PAGE 3   
+
+ 116          {
+ 117   1        read_param(); 
+ 118   1        treadmills.param.beep_status = ee_param.beep_status;
+ 119   1      
+ 120   1      }
+ 121          
+ 122          //上电发送默认的参数值
+ 123          static void send_default_param(void)
+ 124          {
+ 125   1           u8 i=0;
+ 126   1        
+ 127   1           treadmills.param.speed_step = DEFAULT_SPEED_STEP;//50;
+ 128   1       
+ 129   1           treadmills.param.speed_max = DEFAULT_SPEED_MAX;//600;
+ 130   1      
+ 131   1           treadmills.param.voltage_max = DEFAULT_VOLTAGE_MAX;//90;
+ 132   1      
+ 133   1           treadmills.param.voltage_min = DEFAULT_VOLTAGE_MIN;//15;
+ 134   1      
+ 135   1           treadmills.param.over_current_max = DEFAULT_OVER_CURRENT_MAX;//120;
+ 136   1       
+ 137   1           treadmills.param.kiv[0] = DEFAULT_SET_KIV_1KM_VALUE;//20;
+ 138   1           treadmills.param.kiv[1] = DEFAULT_SET_KIV_2KM_VALUE;//20;
+ 139   1           treadmills.param.kiv[2] = DEFAULT_SET_KIV_3KM_VALUE;//15;
+ 140   1           treadmills.param.kiv[3] = DEFAULT_SET_KIV_4KM_VALUE;//10;
+ 141   1           treadmills.param.kiv[4] = DEFAULT_SET_KIV_5KM_VALUE;//8;
+ 142   1           treadmills.param.kiv[5] = DEFAULT_SET_KIV_6KM_VALUE;//8;
+ 143   1           treadmills.param.kiv[6] = DEFAULT_SET_KIV_7KM_VALUE;//6;
+ 144   1           treadmills.param.kiv[7] = DEFAULT_SET_KIV_8KM_VALUE;//6;
+ 145   1           treadmills.param.kiv[8] = DEFAULT_SET_KIV_9KM_VALUE;//6;
+ 146   1           treadmills.param.kiv[9] = DEFAULT_SET_KIV_10KM_VALUE;//6;
+ 147   1           treadmills.param.kiv[10] = DEFAULT_SET_KIV_11KM_VALUE;//6;
+ 148   1           treadmills.param.kiv[11] = DEFAULT_SET_KIV_12KM_VALUE;//6;
+ 149   1      
+ 150   1        
+ 151   1        //****************上电就发送*************
+ 152   1        
+ 153   1          for(i = 0; i< 100;i++)
+ 154   1        {
+ 155   2          NOP_15();
+ 156   2        }
+ 157   1      
+ 158   1        uart_frame_tx(CMD_TREADMILLS_SPEED_MAX,treadmills.param.speed_max/10);  
+ 159   1        uart_frame_tx(CMD_TREADMILLS_SPEED_MAX,treadmills.param.speed_max/10);  
+ 160   1        uart_frame_tx(CMD_VOLTAGE_MAX,treadmills.param.voltage_max);
+ 161   1        uart_frame_tx(CMD_VOLTAGE_MIN,treadmills.param.voltage_min); 
+ 162   1        uart_frame_tx(CMD_OVER_CURRENT_MAX,treadmills.param.over_current_max);  
+ 163   1      
+ 164   1        for( i = 16; i < 28; i++)        //16 = CMD_KIV_1KM， 27 = CMD_KIV_12KM;
+ 165   1        {
+ 166   2        uart_frame_tx(i ,treadmills.param.kiv[i-16]); 
+ 167   2        }
+ 168   1        
+ 169   1      }
+ 170          
+ 171          
+ 172          
+ 173          /*********************************************************************************************************
+             -***
+ 174          *    Main function
+ 175          **********************************************************************************************************
+             -**/
+C51 COMPILER V9.01   MAIN                                                                  03/30/2023 10:09:09 PAGE 4   
+
+ 176          void main (void)
+ 177          {
+ 178   1        u8 i = 0;
+ 179   1        static u8 w_cnt = 0;
+ 180   1        static u8 send_cnt = 0;
+ 181   1      
+ 182   1        NOP_15();
+ 183   1        MODIFY_HIRC_166();
+ 184   1        Set_All_GPIO_Quasi_Mode;
+ 185   1      
+ 186   1        /*
+ 187   1         * 准双向:     PxM1=0 PxM2=0
+ 188   1         * 推挽:       PxM1=0 PxM2=1
+ 189   1         * 高阻抗输入:  PxM1=1 PxM2=0
+ 190   1         * 开漏:       PxM1=1 PxM2=1
+ 191   1         *
+ 192   1         */
+ 193   1        P0M1 =(1<<0) |(1<<1) |(0<<2) |(1<<3) |(0<<4) |(0<<5) |(0<<6) |(0<<7);
+ 194   1        P0M2 =(0<<0) |(0<<1) |(0<<2) |(0<<3) |(0<<4) |(1<<5) |(0<<6) |(0<<7);
+ 195   1      
+ 196   1        P1M1 =(1<<0) |(0<<1) |(0<<2) |(0<<3) |(0<<4) |(0<<5) |(0<<6) |(0<<7);
+ 197   1        P1M2 =(0<<0) |(0<<1) |(0<<2) |(0<<3) |(1<<4) |(0<<5) |(0<<6) |(0<<7);
+ 198   1      
+ 199   1      //  P2M1 =(1<<0) |(1<<1) |(1<<2) |(1<<3) |(1<<4) |(1<<5) |(1<<6) |(1<<7);
+ 200   1      //  P2M2 =(1<<0) |(1<<1) |(1<<2) |(1<<3) |(1<<4) |(1<<5) |(1<<6) |(1<<7);
+ 201   1      //
+ 202   1      //
+ 203   1      //  P3M1 =(1<<0) |(1<<1) |(1<<2) |(1<<3) |(1<<4) |(1<<5) |(1<<6) |(1<<7);
+ 204   1      //  P3M2 =(1<<0) |(1<<1) |(1<<2) |(1<<3) |(1<<4) |(1<<5) |(1<<6) |(1<<7);
+ 205   1      
+ 206   1        key_mask=0x00;//禁止所有按键
+ 207   1      
+ 208   1        led_display_init();
+ 209   1        aip1628_init();
+ 210   1        aip1628_init();
+ 211   1        aip1628_init();
+ 212   1        aip1628_init();
+ 213   1        aip1628_init();
+ 214   1        pwm_init();
+ 215   1        uart0_init();
+ 216   1        Timer0_Init();
+ 217   1        uart_frame_init();
+ 218   1      
+ 219   1        treadmills_init();
+ 220   1        param_init();
+ 221   1      
+ 222   1        treadmills.status=STATUS_POWERON;
+ 223   1        
+ 224   1        
+ 225   1        for(i = 0;i<50;i++)
+ 226   1        {
+ 227   2         NOP_15();
+ 228   2        }
+ 229   1        read_beep_status();
+ 230   1        
+ 231   1        poweron_send_flag = 1;
+ 232   1          
+ 233   1          
+ 234   1        set_EA;                            //开总中断
+ 235   1      
+ 236   1        BEEP_SWITCH_ON_1_CNT(); //2023.3.27
+ 237   1      
+C51 COMPILER V9.01   MAIN                                                                  03/30/2023 10:09:09 PAGE 5   
+
+ 238   1          while(1)
+ 239   1          {
+ 240   2            /**
+ 241   2             * 10ms 周期处理
+ 242   2             */
+ 243   2            uart_frame_loop();
+ 244   2            if(ms10_flag)
+ 245   2            {
+ 246   3              ms10_flag=0;
+ 247   3              KeyPad_Scan();
+ 248   3              beep_sound_proc();
+ 249   3              boot_time();
+ 250   3            }
+ 251   2            
+ 252   2            /**
+ 253   2             * 100ms 周期处理程序
+ 254   2             */
+ 255   2              if(ms100_flag)
+ 256   2              {
+ 257   3                ms100_flag=0;
+ 258   3                seg_disp_proc();
+ 259   3                treadmills_disp_loop();
+ 260   3                treadmills_proc_loop();
+ 261   3              }
+ 262   2      
+ 263   2              /**
+ 264   2               * 500ms 周期处理程序
+ 265   2               */
+ 266   2              if(ms500_flag)
+ 267   2              {
+ 268   3                ms500_flag=0;
+ 269   3      //        LED1=!LED1;//指示灯闪烁
+ 270   3                communication_checkout();
+ 271   3                
+ 272   3                if(poweron_send_flag == 1)
+ 273   3                {
+ 274   4                  send_cnt++;
+ 275   4                  if( send_cnt >= 2)
+ 276   4                  {
+ 277   5                    send_default_param();
+ 278   5                    send_cnt = 0;
+ 279   5                    poweron_send_flag = 0;              
+ 280   5                  }          
+ 281   4                } 
+ 282   3                
+ 283   3              }
+ 284   2      
+ 285   2              /**
+ 286   2               * 1秒周期 处理程序
+ 287   2               */
+ 288   2              if(ms1000_flag)
+ 289   2              {
+ 290   3                ms1000_flag=0;
+ 291   3                treadmills_param_calc();
+ 292   3      
+ 293   3                if(write_flag)
+ 294   3                {
+ 295   4                  if(++w_cnt >=3)
+ 296   4                  {
+ 297   5                    save_param();
+ 298   5                    w_cnt = 0;
+ 299   5                    write_flag = 0;
+C51 COMPILER V9.01   MAIN                                                                  03/30/2023 10:09:09 PAGE 6   
+
+ 300   5                  }    
+ 301   4                }
+ 302   3                else
+ 303   3                {
+ 304   4                  w_cnt = 0;
+ 305   4                }
+ 306   3                
+ 307   3              }
+ 308   2      
+ 309   2              /**
+ 310   2               * led update
+ 311   2               */
+ 312   2            disp_update();
+ 313   2          }
+ 314   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    715    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      2       2
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       2
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

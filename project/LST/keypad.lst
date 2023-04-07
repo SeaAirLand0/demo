@@ -1,0 +1,204 @@
+C51 COMPILER V9.01   KEYPAD                                                                03/30/2023 10:09:09 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE KEYPAD
+OBJECT MODULE PLACED IN .\Output\keypad.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE ..\driver\keypad.c LARGE OPTIMIZE(7,SPEED) BROWSE INCDIR(..\Library\Device\
+                    -Include;..\Library\StdDriver\inc;..\user;..\driver;..\bsp;..\Include;..\common) DEBUG OBJECTEXTEND PRINT(.\LST\keypad.ls
+                    -t) TABS(2) OBJECT(.\Output\keypad.obj)
+
+line level    source
+
+   1          /*
+   2           * keypad.c
+   3           *
+   4           *  Created on: 2018年2月4日
+   5           *      Author: Administrator
+   6           */
+   7          #include "keypad.h"
+   8          #include "keypad_fun.h"
+   9          
+  10          
+  11          
+  12          /*
+  13           * keyboard.c
+  14           *
+  15           *  Created on: 2017年4月28日
+  16           *      Author: Administrator
+  17           */
+  18          
+  19          /**
+  20           * 本键盘程序实现以下功能
+  21           * 功能：
+  22           * 1.将底层驱动和APP分离(keypad_func.c中添加具体实现的功能)，减少耦合性，方便移植。
+  23           * 2.能够识别单键或组合键，键功能自行定义。
+  24           * 3.能够检测当前按下键的数量。
+  25           * 4.实现 短/长/连击功能，以消息循环自行响应按键功能。
+  26           * 5.长按时间长短，连击速度快慢可以通过宏定义配置，短按立即触发快慢只和系统响应有关。
+  27           * 6.具有软件设置按键的屏蔽功能，以及连击(可软件屏蔽)屏蔽功能。
+  28           * 7.自动实现防抖动功能，硬件输入接口简单。
+  29           * 功能配置：
+  30           * #define  LONG_PRESS_FUNC_EN        (0)//实现长功能
+  31           * #define  CONTINUE_PRESS_FUNC_EN    (0)//实现连击功能，但是长按宏定义必须打开
+  32           *
+  33           */
+  34          
+  35          
+  36          
+  37          #define KEY1 (P01)
+  38          #define KEY2 (P00)
+  39          #define KEY3 (P10)
+  40          #define KEY4 (P03)
+  41          
+  42          
+  43          #define IS_PRESS_KEY1()  (KEY1==0)
+  44          #define IS_PRESS_KEY2()  (KEY2==0)
+  45          #define IS_PRESS_KEY3()  (KEY3==0)
+  46          #define IS_PRESS_KEY4()  (KEY4==0)
+  47          
+  48          
+  49          
+  50          
+  51          extern  void keypad_short_proc(void);
+  52          extern  void keypad_long_proc(void);
+  53          extern  void keypad_continue_proc(void);
+C51 COMPILER V9.01   KEYPAD                                                                03/30/2023 10:09:09 PAGE 2   
+
+  54          extern  void keypad_all_realse_proc(void);
+  55          
+  56          
+  57          
+  58          static u8 trig=0;
+  59          static u8 cont=0;
+  60          
+  61          static u8 cnt=0,state=0;
+  62          static u8 new ,old;
+  63          
+  64          static u8 cont_cnt=0;
+  65          static u8 flag=0;
+  66          
+  67          u8 key=0;
+  68          u8 key_cnt=0x00;
+  69          u8 key_mask=0x00;
+  70          
+  71          u8 get_key_status(u8 btn)
+  72          {
+  73   1        u8 status=0;
+  74   1      
+  75   1        if(trig & btn)
+  76   1        {
+  77   2          if(cont & btn){status= KEY_PRESS;}
+  78   2          else{status= KEY_RELEASE;}
+  79   2      
+  80   2        }
+  81   1        return status;
+  82   1      }
+  83          
+  84          void KeyPad_Scan(void)
+  85          {
+  86   1      
+  87   1            /**
+  88   1           * 按键输入入口,和硬件有关系
+  89   1           */
+  90   1          //=================================
+  91   1      
+  92   1        new=0;
+  93   1        if(IS_PRESS_KEY1()){new |=(1<<0);}
+  94   1        if(IS_PRESS_KEY2()){new |=(1<<1);}
+  95   1        if(IS_PRESS_KEY3()){new |=(1<<2);}
+  96   1        if(IS_PRESS_KEY4()){new |=(1<<3);}
+  97   1      
+  98   1          switch(state)
+  99   1          {
+ 100   2             case 0://去除抖动
+ 101   2          if(new !=old)//有可能是抖动
+ 102   2          {
+ 103   3            cnt=0;
+ 104   3          }
+ 105   2          else//可能是稳定值
+ 106   2          {
+ 107   3            cnt++;
+ 108   3            if(cnt>2)//确定是稳定值
+ 109   3            {
+ 110   4              state=1;
+ 111   4              key=new;
+ 112   4              cnt=0;
+ 113   4            }
+ 114   3          }
+ 115   2          old=new;
+C51 COMPILER V9.01   KEYPAD                                                                03/30/2023 10:09:09 PAGE 3   
+
+ 116   2          break;
+ 117   2      
+ 118   2             case 1:
+ 119   2              trig=(key ^ cont);
+ 120   2                cont=key;
+ 121   2      
+ 122   2                key_cnt=0;
+ 123   2                if(key &(1<<0)){key_cnt++;}
+ 124   2                if(key &(1<<1)){key_cnt++;}
+ 125   2                if(key &(1<<2)){key_cnt++;}
+ 126   2                if(key &(1<<3)){key_cnt++;}
+ 127   2      
+ 128   2                if(trig)//表示有按键的触发(press/realse)
+ 129   2                {
+ 130   3                  cont_cnt=0;
+ 131   3                  flag=0;
+ 132   3                  if(key_cnt)
+ 133   3                  {
+ 134   4                    keypad_short_proc();
+ 135   4                  }
+ 136   3                  else
+ 137   3                  {
+ 138   4                    keypad_all_realse_proc();
+ 139   4                  }
+ 140   3                }
+ 141   2                else//表示连续按键有可能是 连续释放
+ 142   2                {
+ 143   3                  cont_cnt++;
+ 144   3      
+ 145   3                  if(flag==0)//表示长按
+ 146   3                  {
+ 147   4                if(cont_cnt>50)
+ 148   4                {
+ 149   5                  flag=1;
+ 150   5                  cont_cnt=0;
+ 151   5                  keypad_long_proc();
+ 152   5                }
+ 153   4                  }
+ 154   3                  else//表示连击
+ 155   3                  {
+ 156   4                    if(cont_cnt>20)
+ 157   4                {
+ 158   5                  cont_cnt=0;
+ 159   5                  keypad_continue_proc();
+ 160   5                }
+ 161   4                  }
+ 162   3                }
+ 163   2      
+ 164   2               //2.判断是否有新的键值
+ 165   2               if(new!=key){old=new;state=0;}
+ 166   2               break;
+ 167   2             default:
+ 168   2               break;
+ 169   2          }
+ 170   1      
+ 171   1      }
+ 172          
+ 173          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    299    ----
+C51 COMPILER V9.01   KEYPAD                                                                03/30/2023 10:09:09 PAGE 4   
+
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     11    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

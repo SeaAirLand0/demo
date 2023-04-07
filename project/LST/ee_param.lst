@@ -1,0 +1,104 @@
+C51 COMPILER V9.01   EE_PARAM                                                              03/30/2023 10:09:10 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE EE_PARAM
+OBJECT MODULE PLACED IN .\Output\ee_param.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE ..\bsp\ee_param.c LARGE OPTIMIZE(7,SPEED) BROWSE INCDIR(..\Library\Device\I
+                    -nclude;..\Library\StdDriver\inc;..\user;..\driver;..\bsp;..\Include;..\common) DEBUG OBJECTEXTEND PRINT(.\LST\ee_param.l
+                    -st) TABS(2) OBJECT(.\Output\ee_param.obj)
+
+line level    source
+
+   1          /*
+   2           * param.c
+   3           *
+   4           *  Created on: 2020年3月8日
+   5           *      Author: Administrator
+   6           */
+   7          
+   8          #include "common.h"
+   9          #include "ee_param.h"
+  10          #include "uart.h"
+  11          
+  12          ee_param_t ee_param;
+  13          //ee_param_t ee_param;
+  14          
+  15          extern void UART_Send_String(UINT8 UARTPort, UINT8 *ptr);
+  16          //extern void UART_Send_Buf(UINT8 UARTPort, UINT8 *ptr,UINT8 len);
+  17          extern void UART_Send_Data(UINT8 UARTPort, UINT8 c);
+  18          
+  19          void ee_param_init(void)
+  20          {
+  21   1        ee_param.sof=PARAM_SOF;
+  22   1      
+  23   1      }
+  24          
+  25          /***************************************************************************************
+  26          *@brief: 读函数
+  27          *@param: 无
+  28          *@ret:   读取成功返回：0,
+  29                   读取失败返回：1
+  30          ****************************************************************************************/
+  31          //u8 read_param(void)
+  32          void read_param(void)
+  33          {
+  34   1        u8 i;
+  35   1        
+  36   1        u8 buff[EEPROM_BYTES];
+  37   1        ee_param_t *ee_param_ptr;
+  38   1        
+  39   1        for(i =0;i< EEPROM_BYTES;i++)
+  40   1        {
+  41   2          buff[i] = 0;
+  42   2        }
+  43   1        
+  44   1        read_aprom_page(PAGE0,(UINT8*)&buff[0],EEPROM_BYTES);//34
+  45   1        ee_param_ptr = (ee_param_t*)&buff[0];
+  46   1        
+  47   1        if(ee_param_ptr->sof == PARAM_SOF )   //0xA5
+  48   1        {
+  49   2          ee_param.beep_status = ee_param_ptr->beep_status;
+  50   2        }
+  51   1        else
+  52   1        {
+  53   2          //调试用
+C51 COMPILER V9.01   EE_PARAM                                                              03/30/2023 10:09:10 PAGE 2   
+
+  54   2      //     EA = 0;
+  55   2            debug_printf_s("\r\n read err\n");
+  56   2            debug_printf_de((u16)ee_param_ptr->sof );
+  57   2      //     EA = 1;
+  58   2      //    return 1;  //读取失败返回1
+  59   2        }
+  60   1      
+  61   1      
+  62   1      }
+  63          
+  64          
+  65          void write_param(void)//(s8 val)
+  66          {
+  67   1        erase_aprom_page(PAGE0);
+  68   1      
+  69   1        //调试用
+  70   1        ee_param.sof = PARAM_SOF;
+  71   1        
+  72   1        write_aprom_page(PAGE0,(UINT8*)&ee_param,EEPROM_BYTES); //34
+  73   1        
+  74   1        debug_printf_s("\r\nee_param_ptr->sof = ");
+  75   1        debug_printf_de((u16)buff[0] );
+  76   1      
+  77   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     90    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      2       2
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

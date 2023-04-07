@@ -1,0 +1,294 @@
+C51 COMPILER V9.01   UART_FRAME                                                            03/30/2023 10:09:09 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE UART_FRAME
+OBJECT MODULE PLACED IN .\Output\uart_frame.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE ..\user\uart_frame.c LARGE OPTIMIZE(7,SPEED) BROWSE INCDIR(..\Library\Devic
+                    -e\Include;..\Library\StdDriver\inc;..\user;..\driver;..\bsp;..\Include;..\common) DEBUG OBJECTEXTEND PRINT(.\LST\uart_fr
+                    -ame.lst) TABS(2) OBJECT(.\Output\uart_frame.obj)
+
+line level    source
+
+   1          /*
+   2           * uart_frame.c
+   3           *
+   4           *  Created on: 2019年12月11日
+   5           *      Author: Administrator
+   6           */
+   7          
+   8          #include "common.h"
+   9          #include "uart_frame.h"
+  10          #include "queue.h"
+  11          #include "treadmills.h"
+  12          #include "param.h"
+  13          #include "led_disp.h"
+  14          #include "indecate.h"
+  15          #include "beep.h"
+  16          #include "uart.h"
+  17          #include "cfg.h"
+  18          
+  19          void cmd_proc(void);
+  20          
+  21          
+  22          
+  23          
+  24          
+  25          T_QUEUE rx_queue;
+  26          u8 rx_buf[RX_BUFF_SIZE];
+  27          uart_frame_t uart_frame;
+  28          
+  29          uart_frame_t uart_tx_frame;
+  30          
+  31          
+  32          
+  33          
+  34          
+  35          void uart0_init(void)
+  36          {
+  37   1        InitialUART0_Timer3(2400);
+  38   1        set_ES;
+  39   1      }
+  40          
+  41          
+  42          void uart_frame_init(void)
+  43          {
+  44   1        Create_Queue(&rx_queue,&rx_buf[0],RX_BUFF_SIZE);
+  45   1      
+  46   1        uart_frame.sof=START_OF_FRAME;
+  47   1        uart_frame.eof=END_OF_FRAME;
+  48   1      
+  49   1        uart_tx_frame.sof=START_OF_FRAME;
+  50   1        uart_tx_frame.eof=END_OF_FRAME;
+  51   1      }
+  52          
+  53          void uart_frame_tx(u8 cmd,u8 dat)
+C51 COMPILER V9.01   UART_FRAME                                                            03/30/2023 10:09:09 PAGE 2   
+
+  54          {
+  55   1      #if(0)
+                uart_tx_frame.cmd=cmd;
+                uart_tx_frame.len=1;
+                uart_tx_frame.buf[0]=dat;
+                UART_Send_Buf(UART0,(UINT8*)&uart_tx_frame,sizeof(uart_tx_frame));
+              #else
+  61   1        u8 xor=0;
+  62   1        uart_tx_frame.cmd=cmd;
+  63   1        xor^=cmd;
+  64   1        uart_tx_frame.len=1;
+  65   1        xor^=1;
+  66   1        uart_tx_frame.buf[0]=dat;
+  67   1        xor^=dat;
+  68   1        uart_tx_frame.buf[1]=xor;
+  69   1        uart_tx_frame.crch=0;
+  70   1        uart_tx_frame.crcl=END_OF_FRAME;
+  71   1        UART_Send_Buf(UART0,(u8*)&uart_tx_frame,uart_tx_frame.len+6);
+  72   1      #endif
+  73   1      }
+  74          
+  75          void uart_frame_tx_2(u8 cmd,u8 dat0,u8 dat1)
+  76          {
+  77   1        u8 xor=0;
+  78   1        uart_tx_frame.cmd=cmd;
+  79   1        xor^=cmd;
+  80   1        uart_tx_frame.len=2;
+  81   1        xor^=2;
+  82   1        uart_tx_frame.buf[0]=dat0;
+  83   1        xor^=dat0;
+  84   1        uart_tx_frame.buf[1]=dat1;
+  85   1        xor^=dat1;
+  86   1        uart_tx_frame.crch=xor;
+  87   1        uart_tx_frame.crcl=0;
+  88   1        uart_tx_frame.eof=END_OF_FRAME;
+  89   1        UART_Send_Buf(UART0,(u8*)&uart_tx_frame,uart_tx_frame.len+6);
+  90   1      }
+  91          
+  92          #if(1)
+  93          
+  94          void uart_frame_loop(void)
+  95          {
+  96   1      
+  97   1         static u8 sm=0,len=0;
+  98   1         static u8 *ptr;
+  99   1         u8 dat;
+ 100   1         u8 ret;
+ 101   1         //ET0 = 0; //允许中断
+ 102   1         ret=Denter_queue(&rx_queue,&dat);
+ 103   1         //ET0 = 1; //允许中断
+ 104   1         if(ret)
+ 105   1         {
+ 106   2           if(dat==uart_frame.sof){sm=1;treadmills.ack=1;return;}
+ 107   2           switch(sm)
+ 108   2           {
+ 109   3           case 1:
+ 110   3                   uart_frame.cmd=dat;
+ 111   3                   sm=2;
+ 112   3                   break;
+ 113   3           case 2:
+ 114   3                   uart_frame.len=dat;
+ 115   3                   if(uart_frame.len>2)
+C51 COMPILER V9.01   UART_FRAME                                                            03/30/2023 10:09:09 PAGE 3   
+
+ 116   3                   {
+ 117   4                     sm=0;
+ 118   4                     return;
+ 119   4                   }
+ 120   3      
+ 121   3                   len=0;
+ 122   3                   ptr=&uart_frame.buf[0];
+ 123   3                   sm=3;
+ 124   3                   break;
+ 125   3           case 3:
+ 126   3                   ptr[len]=dat;
+ 127   3                   len++;
+ 128   3                   if(len>=(uart_frame.len+2))
+ 129   3                   {
+ 130   4                     sm=4;
+ 131   4                   }
+ 132   3                   break;
+ 133   3           case 4:
+ 134   3                   if(dat==uart_frame.eof)
+ 135   3                   {
+ 136   4                     ptr=&uart_frame.cmd;
+ 137   4                     dat=0;
+ 138   4                     for(len=0;len<(uart_frame.len+2);len++)
+ 139   4                     {
+ 140   5                      dat^=ptr[len];
+ 141   5                     }
+ 142   4      
+ 143   4                     if(dat==ptr[len])
+ 144   4                     {
+ 145   5                       cmd_proc();
+ 146   5                     }
+ 147   4                     else
+ 148   4                     {}
+ 149   4                   }
+ 150   3                   sm=0;
+ 151   3                   break;
+ 152   3           default:
+ 153   3                   break;
+ 154   3           }
+ 155   2         }
+ 156   1      }
+ 157          #endif
+ 158          
+ 159          void cmd_proc(void)
+ 160          {
+ 161   1        switch(uart_frame.cmd)
+ 162   1        {
+ 163   2        case CMD_STATUS:
+ 164   2                        break;
+ 165   2        case CMD_SPEED:
+ 166   2                        break;
+ 167   2        case CMD_ACK:
+ 168   2                        LED1=!LED1;//指示灯闪烁
+ 169   2                        treadmills.ack=1;
+ 170   2                        debug_printf("\r\n --->rply ack");
+ 171   2                        //LED1=1;//熄灭
+ 172   2                        break;
+ 173   2        case CMD_RESET:
+ 174   2                        #if(0)
+                                debug_printf("\r\n software reset");
+                                AUXR1 &=(0X7F);
+                                EA=0;
+C51 COMPILER V9.01   UART_FRAME                                                            03/30/2023 10:09:09 PAGE 4   
+
+                                TA=0XAA;
+                                TA=0X55;
+                                CHPCON |=(1<<7);
+                                //EA=1;
+                                #endif
+ 183   2                        break;
+ 184   2        case CMD_STOP_OVER:
+ 185   2                        treadmills.status=STATUS_STOP_OVER;
+ 186   2                        break;
+ 187   2        case CMD_ERROR:
+ 188   2                        treadmills.ack=1;
+ 189   2                        if(treadmills.error_code ==0)
+ 190   2                        {
+ 191   3                          treadmills.error_code=uart_frame.buf[0];
+ 192   3                        }
+ 193   2                        treadmills.status=STATUS_ERROR;
+ 194   2                        BEEP_SWITCH_ON_1_CNT();
+ 195   2      
+ 196   2                        break;
+ 197   2        case CMD_WRITE_PARAM:
+ 198   2                        uart_tx_frame.cmd=CMD_WRITE_PARAM;
+ 199   2                        uart_tx_frame.len=2;
+ 200   2                        uart_tx_frame.buf[0]=(u8)param.speed_adc;
+ 201   2                        uart_tx_frame.buf[1]=(~(u8)param.speed_adc);
+ 202   2                        UART_Send_Buf(UART0,(UINT8*)&uart_tx_frame,sizeof(uart_tx_frame));
+ 203   2                        break;
+ 204   2        case CMD_READ_PARAM:
+ 205   2                        //验证校验
+ 206   2                        if((uart_frame.buf[0] & uart_frame.buf[1])==0)
+ 207   2                        {
+ 208   3                          param.speed_adc=(s8)uart_frame.buf[0];
+ 209   3                        }
+ 210   2                        else
+ 211   2                        {
+ 212   3                          param.speed_adc=0;
+ 213   3                        }
+ 214   2                        break;
+ 215   2        case CMD_TEST:
+ 216   2                        BEEP_SWITCH_ON_1_CNT(); //2023.3.27
+ 217   2                        if(uart_frame.buf[0] ==0)
+ 218   2                        {
+ 219   3                          indecate.led_auto=LED_ON;
+ 220   3                          indecate.led_speed=LED_ON;
+ 221   3                          indecate.led_updp=LED_ON;
+ 222   3                          indecate.led_downdp=LED_OFF;
+ 223   3      
+ 224   3                          indecate.led_time=LED_OFF;
+ 225   3                          indecate.led_distance=LED_OFF;
+ 226   3                          indecate.led_calorie=LED_OFF;
+ 227   3                          set_seg_val(1234);
+ 228   3                          set_seg_mode(SEG_MODE_NORMAL);
+ 229   3                        }
+ 230   2                        else if(uart_frame.buf[0] ==1)
+ 231   2                        {
+ 232   3                          indecate.led_auto=LED_OFF;
+ 233   3                          indecate.led_speed=LED_OFF;
+ 234   3                          indecate.led_updp=LED_OFF;
+ 235   3                          indecate.led_downdp=LED_ON;
+ 236   3      
+ 237   3                          indecate.led_time=LED_ON;
+ 238   3                          indecate.led_distance=LED_ON;
+ 239   3                          indecate.led_calorie=LED_ON;
+C51 COMPILER V9.01   UART_FRAME                                                            03/30/2023 10:09:09 PAGE 5   
+
+ 240   3                          set_seg_val(5678);
+ 241   3                          set_seg_mode(SEG_MODE_FLASH_SELF);
+ 242   3                        }
+ 243   2                        else if(uart_frame.buf[0] ==2)
+ 244   2                        {
+ 245   3                          indecate.led_auto=LED_OFF;
+ 246   3                          indecate.led_speed=LED_OFF;
+ 247   3                          indecate.led_updp=LED_OFF;
+ 248   3                          indecate.led_downdp=LED_OFF;
+ 249   3      
+ 250   3                          indecate.led_time=LED_OFF;
+ 251   3                          indecate.led_distance=LED_OFF;
+ 252   3                          indecate.led_calorie=LED_OFF;
+ 253   3                          set_seg_val(8888);
+ 254   3                          set_seg_mode(SEG_MODE_NORMAL);
+ 255   3                        }
+ 256   2      
+ 257   2                        break;
+ 258   2        default:
+ 259   2                        break;
+ 260   2        }
+ 261   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    828    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =    338       1
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,73 @@
+C51 COMPILER V9.01   PWM_SIMPLE                                                            03/30/2023 10:09:09 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE PWM_SIMPLE
+OBJECT MODULE PLACED IN .\Output\PWM_simple.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE ..\bsp\PWM_simple.c LARGE OPTIMIZE(7,SPEED) BROWSE INCDIR(..\Library\Device
+                    -\Include;..\Library\StdDriver\inc;..\user;..\driver;..\bsp;..\Include;..\common) DEBUG OBJECTEXTEND PRINT(.\LST\PWM_simp
+                    -le.lst) TABS(2) OBJECT(.\Output\PWM_simple.obj)
+
+line level    source
+
+   1          
+   2          #include "common.h"
+   3          
+   4          /*********************************************************************************************************
+             -***
+   5          *    Main function 
+   6          **********************************************************************************************************
+             -**/
+   7          void pwm_init(void)
+   8          {
+   9   1      
+  10   1          PWM1_P14_OUTPUT_ENABLE;
+  11   1        
+  12   1          PWM_IMDEPENDENT_MODE;
+  13   1      
+  14   1      /**********************************************************************
+  15   1        PWM frequency = Fpwm/((PWMPH,PWMPL) + 1) <Fpwm = Fsys/PWM_CLOCK_DIV> 
+  16   1                      = (16MHz/8)/(999 + 1)
+  17   1                      = 2KHz
+  18   1      ***********************************************************************/
+  19   1          PWM_CLOCK_DIV_8;
+  20   1          PWMPH = (900>>8);//600
+  21   1          PWMPL = (900);
+  22   1      
+  23   1      
+  24   1          PWM1H = (0>>8);
+  25   1          PWM1L = 0;
+  26   1          
+  27   1      
+  28   1      /* PWM output inversly enable */
+  29   1          PWM1_OUTPUT_NORMAL;
+  30   1      
+  31   1      /*-------- PWM start run--------------*/ 
+  32   1          set_LOAD;
+  33   1          set_PWMRUN;
+  34   1      
+  35   1      }
+  36          
+  37          
+  38          void PWM1DutyCycle(UINT16 pwm)
+  39          {
+  40   1        PWM1H = (pwm>>8);
+  41   1        PWM1L = pwm;
+  42   1        set_LOAD;// 装载周期和占空比数据
+  43   1      
+  44   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     73    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+C51 COMPILER V9.01   PWM_SIMPLE                                                            03/30/2023 10:09:09 PAGE 2   
+
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

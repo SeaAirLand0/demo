@@ -1,0 +1,14 @@
+C51 COMPILER V8.16   SYS                                                                   10/22/2020 13:12:24 PAGE 1   
+
+
+C51 COMPILER V8.16, COMPILATION OF MODULE SYS
+OBJECT MODULE PLACED IN .\Output\sys.obj
+COMPILER INVOKED BY: C:\Keil_ARM\C51\BIN\C51.EXE ..\Library\StdDriver\src\sys.c LARGE OPTIMIZE(7,SPEED) BROWSE INCDIR(..
+                    -\Library\Device\Include;..\Library\StdDriver\inc;..\user;..\driver;..\bsp;..\Include;..\common) DEFINE(FOSC_166000) DEBU
+                    -G OBJECTEXTEND PRINT(.\LST\sys.lst) TABS(2) OBJECT(.\Output\sys.obj)
+
+line level    source
+
+*** ERROR C318 OF ..\Library\StdDriver\src\sys.c: can't open file '..\Library\StdDriver\src\sys.c'
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  1 ERROR(S)
